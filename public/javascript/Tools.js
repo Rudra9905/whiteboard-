@@ -15,6 +15,12 @@ function createRoom() {
     // Connect to room
     socket.emit('joinRoom', roomCode);
     console.log('Created room:', roomCode); // Debug log
+
+    // Close modal after creating room
+    const roomModal = bootstrap.Modal.getInstance(document.getElementById('roomCodeModal'));
+    if (roomModal) {
+        roomModal.hide();
+    }
 }
 
 function joinRoom(code) {
@@ -63,7 +69,7 @@ function showNotification(message) {
     setTimeout(() => {
         notification.remove();
     }, 3000);
-});
+} // Remove extra parenthesis
 
 const canvas = document.getElementById('whiteboard');
 
@@ -146,8 +152,25 @@ canvas.addEventListener('mousedown', (e) => {
         isDrawing = true;
         ctx.beginPath();
         ctx.moveTo(e.offsetX, e.offsetY);
+        
+        // Emit start of drawing to server
+        socket.emit('draw-start', {
+            room: currentRoom,
+            x: e.offsetX,
+            y: e.offsetY,
+            color: color,
+            size: size
+        });
     } else if (tool === 'erase') {
         isErasing = true;
+        
+        // Emit erase event to server
+        socket.emit('erase', {
+            room: currentRoom,
+            x: e.offsetX,
+            y: e.offsetY,
+            size: size
+        });
     } else if (tool === 'line') {
         startX = e.offsetX;
         startY = e.offsetY;
@@ -168,6 +191,17 @@ canvas.addEventListener('mousedown', (e) => {
             ctx.fillStyle = color;
             ctx.font = `${size*2}px Arial`;
             ctx.fillText(t, e.offsetX, e.offsetY);
+            
+            // Emit text addition to server
+            socket.emit('add-text', {
+                room: currentRoom,
+                text: t,
+                x: e.offsetX,
+                y: e.offsetY,
+                color: color,
+                size: size*2
+            });
+            
             // Store text object
             textObjects.push({
                 text: t,
@@ -190,8 +224,25 @@ canvas.addEventListener('mousemove', (e) => {
         ctx.lineWidth = size;
         ctx.lineCap = 'round';
         ctx.stroke();
+        
+        // Emit drawing movement to server
+        socket.emit('draw-move', {
+            room: currentRoom,
+            x: e.offsetX,
+            y: e.offsetY,
+            color: color,
+            size: size
+        });
     } else if (tool === 'erase' && isErasing) {
         ctx.clearRect(e.offsetX, e.offsetY, size, size);
+        
+        // Emit erase movement to server
+        socket.emit('erase', {
+            room: currentRoom,
+            x: e.offsetX,
+            y: e.offsetY,
+            size: size
+        });
     }
 });
 
@@ -199,9 +250,11 @@ canvas.addEventListener('mouseup', (e) => {
     if (tool === 'draw' && isDrawing) {
         isDrawing = false;
         ctx.closePath();
+        socket.emit('draw-end', { room: currentRoom });
         historyManager.saveState('draw');
     } else if (tool === 'erase' && isErasing) {
         isErasing = false;
+        socket.emit('erase-end', { room: currentRoom });
         historyManager.saveState('erase');
     } else if (tool === 'line') {
         const endX = e.offsetX;
@@ -214,6 +267,18 @@ canvas.addEventListener('mouseup', (e) => {
         ctx.lineWidth = size;
         ctx.stroke();
         ctx.closePath();
+        
+        // Emit line drawing to server
+        socket.emit('draw-line', {
+            room: currentRoom,
+            startX: startX,
+            startY: startY,
+            endX: endX,
+            endY: endY,
+            color: color,
+            size: size
+        });
+        
         historyManager.saveState('line');
     }
     else if(tool === 'circle')
@@ -228,6 +293,17 @@ canvas.addEventListener('mouseup', (e) => {
         ctx.lineWidth = size;
         ctx.stroke();
         ctx.closePath();
+        
+        // Emit circle drawing to server
+        socket.emit('draw-circle', {
+            room: currentRoom,
+            startX: startX,
+            startY: startY,
+            radius: radius,
+            color: color,
+            size: size
+        });
+        
         historyManager.saveState('circle');
     }
     else if (tool === 'rectangle') {
@@ -242,6 +318,18 @@ canvas.addEventListener('mouseup', (e) => {
         ctx.lineWidth = size;
         ctx.stroke();
         ctx.closePath();
+        
+        // Emit rectangle drawing to server
+        socket.emit('draw-rectangle', {
+            room: currentRoom,
+            startX: startX,
+            startY: startY,
+            width: width,
+            height: height,
+            color: color,
+            size: size
+        });
+        
         historyManager.saveState('rectangle');
     }
 
@@ -257,6 +345,18 @@ canvas.addEventListener('mouseup', (e) => {
         ctx.strokeStyle = color;
         ctx.lineWidth = size;
         ctx.stroke();
+        
+        // Emit triangle drawing to server
+        socket.emit('draw-triangle', {
+            room: currentRoom,
+            startX: startX,
+            startY: startY,
+            endX: endX,
+            endY: endY,
+            color: color,
+            size: size
+        });
+        
         historyManager.saveState('triangle');
     }
     
@@ -334,11 +434,8 @@ selectedText = null;
 // Add Socket.IO client script at the top of your HTML file
 // <script src="/socket.io/socket.io.js"></script>
 
-// Connect to the Socket.IO server
-const socket = io();
 
 // Add at the top of file, after socket initialization
-let currentRoom = '';
 
 // Add room management functions
 function createRoom() {
@@ -573,18 +670,22 @@ canvas.addEventListener('mouseup', (e) => {
 
 // Add Socket.IO event listeners for collaborative drawing
 socket.on('draw-start', (data) => {
-    ctx.beginPath();
-    ctx.moveTo(data.x, data.y);
-    ctx.strokeStyle = data.color;
-    ctx.lineWidth = data.size;
-    ctx.lineCap = 'round';
+    if (data.room === currentRoom) {
+        ctx.beginPath();
+        ctx.moveTo(data.x, data.y);
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = data.size;
+        ctx.lineCap = 'round';
+    }
 });
 
 socket.on('draw-move', (data) => {
-    ctx.lineTo(data.x, data.y);
-    ctx.strokeStyle = data.color;
-    ctx.lineWidth = data.size;
-    ctx.stroke();
+    if (data.room === currentRoom) {
+        ctx.lineTo(data.x, data.y);
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = data.size;
+        ctx.stroke();
+    }
 });
 
 socket.on('draw-end', () => {
@@ -657,3 +758,18 @@ socket.on('userJoined', (data) => {
 socket.on('userLeft', (data) => {
     console.log(`User left room ${data.room}`);
 });
+
+// Add error handling for socket connection
+socket.on('connect_error', (error) => {
+    console.error('Socket connection error:', error);
+    showNotification('Connection error occurred');
+});
+
+// Add room status indicator
+function updateRoomStatus(isConnected) {
+    const roomBtn = document.getElementById('room');
+    if (roomBtn) {
+        roomBtn.classList.toggle('connected', isConnected);
+        roomBtn.setAttribute('data-tooltip', isConnected ? `Connected to ${currentRoom}` : 'Join Room');
+    }
+}
