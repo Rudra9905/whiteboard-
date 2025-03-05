@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Whiteboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/stylesheet/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+  
+
+</head>
+
+<body class="dark-theme">
+    <div class="theme-toggle">
+        <input type="checkbox" id="theme-switch" class="theme-switch">
+        <label for="theme-switch" class="theme-switch-label">
+            <i class="fas fa-sun"></i>
+            <i class="fas fa-moon"></i>
+        </label>
+    </div>
+
+    <div class="container-fluid">
+        <div class="toolbar-wrapper">
+            <div class="toolbar">
+                <div class="tool-group">
+                    <label for="color" class="tool-label">Color:</label>
+                    <input type="color" id="color" value="#000000" class="color-picker">
+                </div>
+
+                <div class="tool-group">
+                    <label for="size" class="tool-label">Size:</label>
+                    <div class="size-control">
+                        <input type="range" id="size" value="5" min="1" max="50" class="size-slider">
+                        <span class="size-value">5px</span>
+                    </div>
+                </div>
+
+                <div class="tool-group buttons ">
+                    <button id="draw" class="btn tool-btn active" data-tooltip="Draw">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    <button id="eraser" class="btn tool-btn" data-tooltip="Eraser">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button id="clear" class="btn tool-btn" data-tooltip="Clear All">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+
+                <div class="tool-group">
+                    <button class="btn tool-btn" id="line" data-tooltip="Line">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="btn tool-btn" id="circle" data-tooltip="Circle">
+                        <i class="far fa-circle"></i>
+                    </button>
+                    <button class="btn tool-btn" id="rectangle" data-tooltip="Rectangle">
+                        <i class="far fa-square"></i>
+                    </button>
+                    <button class="btn tool-btn" id="triangle" data-tooltip="Triangle">
+                        <i class="fas fa-play fa-rotate-270"></i>
+                    </button>
+                    <span style="position: relative; display: flex; align-items: center;">
+                    <i class="fas fa-font"
+                    style="position: absolute; 
+                    left: 10px; 
+                    top: 50%; 
+                    transform: translateY(-50%); 
+                    font-size: 16px; 
+                    color: #888;"
+                    ></i>
+                    <input type="text" class="btn tool-btn" id="text" data-tooltip="Text"
+                    style="padding: 10px 10px 10px 35px; 
+                    font-size: 14px; 
+                    border: 1px solid #ccc; 
+                    border-radius: 5px; 
+                    box-sizing: border-box; 
+                    width: 150px;">
+                    </span>
+                </div>
+                
+                <div class="tool-group">
+                    <button id="undo" class="btn tool-btn" data-tooltip="Undo">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button id="redo" class="btn tool-btn" data-tooltip="Redo">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+                
+                <div class="tool-group">
+                    <button id="save" class="btn tool-btn" data-tooltip="Save">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button id="download" class="btn tool-btn" data-tooltip="Download">
+                        <i class="fas fa-download"> </i>
+                    </button>
+
+                    <button id="view-saved" class="btn tool-btn" data-tooltip="View Saved">
+                        <i class="fas fa-folder-open"></i>
+                    </button>
+                    <button id="room" class="btn tool-btn" data-tooltip="Room Code">
+                        <i class="fas fa-users"></i>
+                    </button>
+                </div>
+
+                <!-- new -->
+                <!-- <div class="room-modal" id="roomModal">
+                    <h3>Join Room</h3>
+                    <div class="room-controls">
+                        <input type="text" id="roomCodeInput" placeholder="Enter room code">
+                        <button onclick="joinRoom(document.getElementById('roomCodeInput').value)" class="btn tool-btn" >Join</button>
+                        <button onclick="createRoom()" class="btn tool-btn">Create New Room</button>
+                    </div>
+                </div> -->
+
+            </div>
+        </div>
+
+
+        <div class="canvas-container">
+            <canvas id="whiteboard" width="1400" height="700"></canvas>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="savedFilesModal" tabindex="-1" aria-labelledby="savedFilesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="savedFilesModalLabel">Saved Whiteboards</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="savedFilesList">
+                    <!-- Saved files will be displayed here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+   <!-- new -->
+
+<div class="modal fade" id="roomCodeModal" tabindex="-1" aria-labelledby="roomCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomCodeModalLabel">
+                    <i class="fas fa-users"></i> Room Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="room-info" id="roomInfo" style="display: none;">
+                    <h6 class="mb-3">Current Room</h6>
+                    <div class="d-flex align-items-center gap-3">
+                        <span id="currentRoomCode"></span>
+                        <button class="room-btn" onclick="navigator.clipboard.writeText(document.getElementById('currentRoomCode').textContent)">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="roomCodeInput" class="form-label">Enter Room Code:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="roomCodeInput" placeholder="Enter room code">
+                        <!-- <button class="room-btn" id="joinRoomBtn" onclick="joinRoom(document.getElementById('roomCodeInput').value)">
+                            <i class="fas fa-sign-in-alt"></i> Join
+                        </button> -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="room-btn" onclick="createRoom()">
+                    <i class="fas fa-plus"></i> Create New Room
+                </button>
+                <button type="button" class="room-btn" onclick="joinRoom(document.getElementById('roomCodeInput').value)">
+                    <i class="fas fa-sign-in-alt"></i> Join Room
+                </button>
+                <!-- <button type="button" class="room-btn" data-bs-dismiss="modal">Close</button> -->
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/javascript/undo_redo.js"></script>
+    <script src="/javascript/Tools.js"></script>
+    <script src="/javascript/ViewSavefile.js"></script>
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        
+        // Add connection status logging
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+        });
+    </script>
+  
+</body>
+
+</html>

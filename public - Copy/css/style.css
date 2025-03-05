@@ -1,0 +1,15 @@
+.member-count {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: var(--light);
+    border-radius: 8px;
+    color: var(--primary);
+}
+
+.active-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: center;
+}
