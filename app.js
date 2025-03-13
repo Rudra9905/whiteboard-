@@ -20,73 +20,87 @@ app.get("/drawing", (req, res) => {
     res.render("drawing");
 });
 
+
+
+
+// Server-side socket.io code
 io.on('connection', (socket) => {
-    console.log('New client connected');
-    
-    socket.on('joinRoom', (roomCode) => {
-        // Leave previous rooms
-        socket.rooms.forEach(room => {
-            if (room !== socket.id) socket.leave(room);
+    console.log('A user connected');
+
+    socket.on('joinRoom', (room) => {
+        // Leave all other rooms first
+        socket.rooms.forEach(r => {
+            if (r !== socket.id) {
+                socket.leave(r);
+            }
         });
         
-        // Join new room
-        socket.join(roomCode);
-        io.to(roomCode).emit('userJoined', { room: roomCode });
+        // Join the new room
+        socket.join(room);
         
-        console.log(`Client ${socket.id} joined room ${roomCode}`);
+        // Notify room members
+        io.to(room).emit('userJoined', { room: room });
+        console.log(`User ${socket.id} joined room ${room}`);
     });
 
-    // Update all drawing events to use rooms
+    // Drawing events
     socket.on('draw-start', (data) => {
+        // Broadcast to room only, excluding sender
         socket.to(data.room).emit('draw-start', data);
     });
+
     socket.on('draw-move', (data) => {
         socket.to(data.room).emit('draw-move', data);
     });
-    socket.on('draw-end', () => socket.broadcast.emit('draw-end'));
-    socket.on('erase', (data) => socket.broadcast.emit('erase', data));
-    
 
-    socket.on('save-canvas-state', (state) => {
-        socket.broadcast.emit('remote-canvas-state', state);
+    socket.on('draw-end', (data) => {
+        socket.to(data.room).emit('draw-end', data);
     });
 
-    // Broadcast undo action to all other clients
-    socket.on('canvas-undo', () => {
-        socket.broadcast.emit('remote-canvas-undo');
+    socket.on('erase', (data) => {
+        socket.to(data.room).emit('erase', data);
     });
 
-    // Broadcast redo action to all other clients
-    socket.on('canvas-redo', () => {
-        socket.broadcast.emit('remote-canvas-redo');
+    socket.on('erase-end', (data) => {
+        socket.to(data.room).emit('erase-end', data);
     });
 
-    // Handle shape events
-    socket.on('draw-line', (data) => socket.broadcast.emit('draw-line', data));
-    socket.on('draw-circle', (data) => socket.broadcast.emit('draw-circle', data));
-    socket.on('draw-rectangle', (data) => socket.broadcast.emit('draw-rectangle', data));
-    socket.on('draw-triangle', (data) => socket.broadcast.emit('draw-triangle', data));
-    
-    // Handle text events
-    socket.on('add-text', (data) => socket.broadcast.emit('add-text', data));
-    
-
-    socket.on('save-whiteboard', (saveData) => {
-        socket.broadcast.emit('remote-whiteboard-saved', saveData);
+    socket.on('draw-line', (data) => {
+        socket.to(data.room).emit('draw-line', data);
     });
 
-    // Handle whiteboard load
-    socket.on('load-whiteboard', (saveData) => {
-        socket.broadcast.emit('remote-whiteboard-loaded', saveData);
+    socket.on('draw-circle', (data) => {
+        socket.to(data.room).emit('draw-circle', data);
     });
 
-    // Handle whiteboard delete
-    socket.on('delete-whiteboard', (key) => {
-        socket.broadcast.emit('remote-whiteboard-deleted', key);
+    socket.on('draw-rectangle', (data) => {
+        socket.to(data.room).emit('draw-rectangle', data);
     });
-    
+
+    socket.on('draw-triangle', (data) => {
+        socket.to(data.room).emit('draw-triangle', data);
+    });
+
+    socket.on('add-text', (data) => {
+        socket.to(data.room).emit('add-text', data);
+    });
+
+    socket.on('move-text', (data) => {
+        socket.to(data.room).emit('move-text', data);
+    });
+
+    socket.on('clear-canvas', (data) => {
+        socket.to(data.room).emit('clear-canvas', data);
+    });
+
     socket.on('disconnect', () => {
-        console.log('Client disconnected');
+        console.log('User disconnected');
+        // Notify rooms this user was in
+        socket.rooms.forEach(room => {
+            if (room !== socket.id) {
+                io.to(room).emit('userLeft', { room: room });
+            }
+        });
     });
 });
 
