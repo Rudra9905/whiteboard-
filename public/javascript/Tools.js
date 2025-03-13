@@ -736,18 +736,20 @@ socket.on('draw-triangle', (data) => {
 });
 
 socket.on('add-text', (data) => {
-    ctx.fillStyle = data.color;
-    ctx.font = `${data.size}px Arial`;
-    ctx.fillText(data.text, data.x, data.y);
-    
-    // Also add to textObjects if needed
-    textObjects.push({
-        text: data.text,
-        x: data.x,
-        y: data.y,
-        color: data.color,
-        size: data.size
-    });
+    if (data.room === currentRoom) {
+        ctx.fillStyle = data.color;
+        ctx.font = `${data.size}px Arial`;
+        ctx.fillText(data.text, data.x, data.y);
+        
+        // Also add to textObjects if needed
+        textObjects.push({
+            text: data.text,
+            x: data.x,
+            y: data.y,
+            color: data.color,
+            size: data.size
+        });
+    }
 });
 
 // Add room-related event listeners
