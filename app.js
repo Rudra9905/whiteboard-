@@ -57,6 +57,28 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('draw-end', data);
     });
 
+
+    socket.on('save-canvas-state', (data) => {
+        socket.to(data.room).emit('remote-canvas-state', {
+            state: data.state,
+            room: data.room
+        });
+    });
+
+    // Broadcast undo action to all other clients in the same room
+    socket.on('canvas-undo', (data) => {
+        socket.to(data.room).emit('remote-canvas-undo', {
+            room: data.room
+        });
+    });
+
+    // Broadcast redo action to all other clients in the same room
+    socket.on('canvas-redo', (data) => {
+        socket.to(data.room).emit('remote-canvas-redo', {
+            room: data.room
+        });
+    });
+
     socket.on('erase', (data) => {
         socket.to(data.room).emit('erase', data);
     });
@@ -87,6 +109,31 @@ io.on('connection', (socket) => {
 
     socket.on('move-text', (data) => {
         socket.to(data.room).emit('move-text', data);
+    });
+
+    socket.on('save-whiteboard', (data) => {
+        // Broadcast save to clients in the same room
+        socket.to(data.room).emit('remote-whiteboard-saved', {
+            key: data.key,
+            imageData: data.imageData,
+            room: data.room
+        });
+    });
+
+    socket.on('delete-whiteboard', (data) => {
+        // Broadcast delete to clients in the same room
+        socket.to(data.room).emit('remote-whiteboard-deleted', {
+            key: data.key,
+            room: data.room
+        });
+    });
+
+    socket.on('load-whiteboard', (data) => {
+        // Broadcast load to clients in the same room
+        socket.to(data.room).emit('remote-whiteboard-loaded', {
+            imageData: data.imageData,
+            room: data.room
+        });
     });
 
     socket.on('clear-canvas', (data) => {

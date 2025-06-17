@@ -1,8 +1,10 @@
 class SaveFileManager {
-    constructor(canvas, ctx, socket) {
+    constructor(canvas, ctx, socket, room) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.socket = socket; // Socket.IO connection
+        this.room = room; // Store the room ID
+        this.modal = null;
         this.initializeModal();
         this.initializeButtons();
         this.initializeSocketListeners();
@@ -15,7 +17,7 @@ class SaveFileManager {
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="savedFilesModalLabel">Saved Whiteboards</h5>
+                                <h5 class="modal-title" id="savedFilesModalLabel">Saved Whiteboards - Room: ${this.room}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body" id="savedFilesList">
@@ -47,38 +49,51 @@ class SaveFileManager {
     }
 
     initializeSocketListeners() {
-        // Listen for remote save events
+        // Listen for remote save events - only for this room
         this.socket.on('remote-whiteboard-saved', (saveData) => {
-            this.saveToLocalStorage(saveData.key, saveData.imageData);
-            this.displaySavedFiles();
+            // Only process if it's for our room
+            if (saveData.room === this.room) {
+                this.saveToLocalStorage(saveData.key, saveData.imageData);
+                this.displaySavedFiles();
+            }
         });
 
-        // Listen for remote delete events
-        this.socket.on('remote-whiteboard-deleted', (key) => {
-            localStorage.removeItem(key);
-            this.displaySavedFiles();
+        // Listen for remote delete events - only for this room
+        this.socket.on('remote-whiteboard-deleted', (data) => {
+            // Only process if it's for our room
+            if (data.room === this.room) {
+                localStorage.removeItem(data.key);
+                this.displaySavedFiles();
+            }
         });
 
-        // Listen for remote load events
+        // Listen for remote load events - only for this room
         this.socket.on('remote-whiteboard-loaded', (saveData) => {
-            this.loadRemoteSavedFile(saveData.imageData);
+            // Only process if it's for our room
+            if (saveData.room === this.room) {
+                this.loadRemoteSavedFile(saveData.imageData);
+            }
         });
     }
 
     saveCanvas() {
         try {
             const timestamp = new Date().toISOString();
-            const key = 'whiteboard_' + timestamp;
+            // Include room in the key to avoid collisions between rooms
+            const key = `whiteboard_${this.room || 'no-room'}_${timestamp}`;
             const imageData = this.canvas.toDataURL();
             
             // Save locally
             this.saveToLocalStorage(key, imageData);
             
-            // Broadcast save to other clients
-            this.socket.emit('save-whiteboard', { 
-                key: key, 
-                imageData: imageData 
-            });
+            // Only broadcast save if we're in a room
+            if (this.room) {
+                this.socket.emit('save-whiteboard', { 
+                    key: key, 
+                    imageData: imageData,
+                    room: this.room
+                });
+            }
 
             this.showAlert('Canvas saved successfully!', 'success');
         } catch (e) {
@@ -114,16 +129,20 @@ class SaveFileManager {
         const files = [];
         for(let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if(key.startsWith('whiteboard_')) {
+            // Only show files for this room (or no-room if not in a room)
+            const roomPrefix = this.room || 'no-room';
+            if(key.startsWith(`whiteboard_${roomPrefix}_`)) {
                 files.push({
                     key: key,
-                    date: new Date(key.replace('whiteboard_', '').replace(/-/g, ':')).toLocaleString()
+                    // Extract timestamp from the key
+                    date: new Date(key.replace(`whiteboard_${roomPrefix}_`, '').replace(/-/g, ':')).toLocaleString()
                 });
             }
         }
 
         if(files.length === 0) {
-            savedFilesList.innerHTML = '<p class="text-center">No saved whiteboards found.</p>';
+            const roomText = this.room ? `for this room` : `(not in a collaborative room)`;
+            savedFilesList.innerHTML = `<p class="text-center">No saved whiteboards found ${roomText}.</p>`;
             return;
         }
 
@@ -189,8 +208,13 @@ class SaveFileManager {
                 // Save state for undo/redo
                 window.historyManager?.saveState('load');
                 
-                // Broadcast load to other clients
-                this.socket.emit('load-whiteboard', { imageData: savedData });
+                // Only broadcast load if we're in a room
+                if (this.room) {
+                    this.socket.emit('load-whiteboard', { 
+                        imageData: savedData,
+                        room: this.room
+                    });
+                }
                 
                 this.modal.hide();
             };
@@ -213,8 +237,13 @@ class SaveFileManager {
             // Remove locally
             localStorage.removeItem(key);
             
-            // Broadcast delete to other clients
-            this.socket.emit('delete-whiteboard', key);
+            // Only broadcast delete if we're in a room
+            if (this.room) {
+                this.socket.emit('delete-whiteboard', {
+                    key: key,
+                    room: this.room
+                });
+            }
             
             // Refresh display
             this.displaySavedFiles();
@@ -226,7 +255,11 @@ class SaveFileManager {
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('whiteboard');
     const ctx = canvas.getContext('2d');
-    const socket = io(); // Initialize Socket.IO connection
+    const socket = window.socket || io(); // Use global socket if available
     
-    window.saveFileManager = new SaveFileManager(canvas, ctx, socket);
+    // Get room ID from URL parameter or use empty string if no room
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room') || '';
+    
+    window.saveFileManager = new SaveFileManager(canvas, ctx, socket, room);
 });

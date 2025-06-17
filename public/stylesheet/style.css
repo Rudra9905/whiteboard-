@@ -270,21 +270,157 @@ body.dark-theme {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+  
   .toolbar {
-      gap: 10px;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0.5rem;
   }
-
+  
   .tool-group {
-      padding-right: 10px;
-      gap: 5px;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 10px;
+    padding-right: 0;
+    width: 100%;
+    justify-content: center;
   }
-
-  .quick-colors {
-      display: none;
+  
+  .tool-group:last-child {
+    border-bottom: none;
   }
-
+  
+  .tool-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 18px;
+  }
+  
   .size-slider {
-      width: 80px;
+    width: 80px;
+  }
+  
+  .color-picker {
+    width: 30px;
+    height: 30px;
+  }
+  
+  #text {
+    width: 120px !important;
+    font-size: 14px;
+  }
+  
+  .canvas-container {
+    margin-top: 20px;
+  }
+  
+  #whiteboard {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  
+  .theme-toggle {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .theme-switch-label {
+    padding: 15px;
+  }
+  
+  .modal-dialog {
+    margin: 10px;
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+  }
+  
+  .tool-label {
+    font-size: 14px;
+  }
+  
+  .size-value {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 5px;
+  }
+  
+  .toolbar {
+    padding: 0.3rem;
+    gap: 5px;
+  }
+  
+  .tool-group {
+    gap: 5px;
+    padding: 5px;
+  }
+  
+  .tool-btn {
+    width: 45px;
+    height: 45px;
+    font-size: 16px;
+  }
+  
+  .size-slider {
+    width: 60px;
+  }
+  
+  #text {
+    width: 100px !important;
+    font-size: 12px;
+    padding: 8px 8px 8px 25px !important;
+  }
+  
+  .tool-label {
+    font-size: 12px;
+  }
+  
+  .size-value {
+    font-size: 12px;
+    min-width: 35px;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .tool-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .color-picker {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .size-slider {
+    min-height: 44px;
+  }
+  
+  .tool-btn:hover {
+    transform: none;
+  }
+  
+  .tool-btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Prevent zoom on input focus for iOS */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  input[type="text"],
+  input[type="color"],
+  input[type="range"] {
+    font-size: 16px;
   }
 }
 
