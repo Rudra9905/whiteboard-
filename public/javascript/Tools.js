@@ -4,21 +4,6 @@ const socket = io();
 window.socket = socket; // Make socket globally accessible
 let currentRoom = ''; // Don't set a default room - users must explicitly join a room
 
-// Global variables
-let canvas, ctx;
-let line, triangle, circle, rectangle, text;
-let color = '#000000';
-let size = 5;
-let tool = 'draw';
-let isDrawing = false;
-let isErasing = false;
-let startX, startY;
-let textObjects = [];
-let selectedText = null;
-let isDragging = false;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
-
 // Replace the existing createRoom and joinRoom functions
 function createRoom() {
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -63,106 +48,8 @@ function joinRoom(code) {
     updateRoomStatus(true);
 }
 
-// Initialize canvas and make it responsive
-function initializeCanvas() {
-    const canvas = document.getElementById('whiteboard');
-    const ctx = canvas.getContext('2d');
-    
-    // Set initial canvas size
-    canvas.width = 800;
-    canvas.height = 600;
-    
-    // Make canvas responsive
-    function resizeCanvas() {
-        const container = canvas.parentElement;
-        const containerWidth = container.clientWidth;
-        const containerHeight = window.innerHeight - 200; // Leave space for toolbar
-        
-        // Calculate aspect ratio
-        const aspectRatio = canvas.width / canvas.height;
-        
-        let newWidth, newHeight;
-        
-        if (containerWidth / aspectRatio <= containerHeight) {
-            // Width is the limiting factor
-            newWidth = containerWidth - 20; // Leave some padding
-            newHeight = newWidth / aspectRatio;
-        } else {
-            // Height is the limiting factor
-            newHeight = containerHeight;
-            newWidth = newHeight * aspectRatio;
-        }
-        
-        // Set canvas style dimensions
-        canvas.style.width = newWidth + 'px';
-        canvas.style.height = newHeight + 'px';
-        
-        // Maintain drawing quality
-        canvas.style.imageRendering = 'pixelated';
-    }
-    
-    // Resize on load and window resize
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', () => {
-        setTimeout(resizeCanvas, 100);
-    });
-    
-    // Initial resize
-    resizeCanvas();
-    
-    return { canvas, ctx };
-}
-
-// Initialize canvas when DOM is loaded
+// Add room button event listener
 document.addEventListener('DOMContentLoaded', () => {
-    const { canvas: canvasElement, ctx: ctxElement } = initializeCanvas();
-    
-    // Update global canvas and ctx references
-    canvas = canvasElement;
-    ctx = ctxElement;
-    window.canvas = canvas;
-    window.ctx = ctx;
-    
-    // Initialize DOM element references
-    line = document.getElementById('line');
-    triangle = document.getElementById('triangle');
-    circle = document.getElementById('circle');
-    rectangle = document.getElementById('rectangle');
-    text = document.getElementById('text');
-    
-    // Add event listeners for DOM elements
-    document.getElementById('color').addEventListener('input', (e) => {
-        color = e.target.value;
-    });
-
-    document.getElementById('size').addEventListener('input', (e) => {
-        size = e.target.value;
-        let x = document.querySelector('.size-value');
-        x.textContent = size + 'px';
-    });
-
-    document.getElementById('clear').addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        textObjects = [];
-        historyManager.saveState('clear');
-        
-        // Only emit clear canvas event if we're in a room
-        if (currentRoom) {
-            socket.emit('clear-canvas', {
-                room: currentRoom
-            });
-        }
-    });
-
-    document.getElementById('draw').addEventListener('click', () => setTool('draw'));
-    document.getElementById('eraser').addEventListener('click', () => setTool('erase'));
-    line.addEventListener('click', () => setTool('line'));
-    triangle.addEventListener('click', () => setTool('triangle'));
-    circle.addEventListener('click', () => setTool('circle'));
-    text.addEventListener('click', () => setTool('text'));
-    rectangle.addEventListener('click', () => setTool('rectangle'));
-    
-    // Rest of the initialization code...
     const roomBtn = document.getElementById('room');
     if (roomBtn) {
         roomBtn.addEventListener('click', () => {
@@ -183,20 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update room status on page load
     updateRoomStatus(!!currentRoom);
-
-    // Add download and theme event listeners
-    let down = document.getElementById('download');
-    down.addEventListener('click', () => {
-        const link = document.createElement('a');
-        link.download = 'whiteboard.png';
-        link.href = canvas.toDataURL();
-        link.click();
-    });
-
-    let theme = document.getElementById('theme-switch');
-    theme.addEventListener('change', () => {
-        document.body.classList.toggle('dark-theme');
-    });
 });
 
 // Helper function for notifications
@@ -210,6 +83,69 @@ function showNotification(message) {
         notification.remove();
     }, 3000);
 } // Remove extra parenthesis
+
+const canvas = document.getElementById('whiteboard');
+
+const ctx = canvas.getContext('2d');
+
+let line = document.getElementById('line');
+let triangle = document.getElementById('triangle');
+let circle = document.getElementById('circle');
+let rectangle = document.getElementById('rectangle');
+let text = document.getElementById('text');
+
+let color = '#000000';
+let size = 5;
+let tool = 'draw';
+
+let isDrawing = false;
+let isErasing = false;
+
+let startX, startY;
+
+let textObjects = [];
+let selectedText = null;
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+document.getElementById('color').addEventListener('input', (e) => {
+    color = e.target.value;
+});
+
+document.getElementById('size').addEventListener('input', (e) => {
+    size = e.target.value;
+    let x = document.querySelector('.size-value');
+    x.textContent = size + 'px';
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    textObjects = [];
+    historyManager.saveState('clear');
+    
+    // Only emit clear canvas event if we're in a room
+    if (currentRoom) {
+        socket.emit('clear-canvas', {
+            room: currentRoom
+        });
+    }
+});
+
+document.getElementById('draw').addEventListener('click', () => setTool('draw'));
+
+document.getElementById('eraser').addEventListener('click', () => setTool('erase'));
+
+line.addEventListener('click', () => setTool('line'));
+
+triangle.addEventListener('click', () => setTool('triangle'));
+
+circle.addEventListener('click', () => setTool('circle'));
+
+text.addEventListener('click', () => setTool('text'));
+
+rectangle.addEventListener('click', () => setTool('rectangle'));
+
 
 function setTool(too) {
     tool = too;
@@ -231,59 +167,20 @@ function setTool(too) {
     
 }
 
-// Helper function to get coordinates from mouse or touch events
-function getCoordinates(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    if (e.type.includes('touch')) {
-        // Touch event
-        const touch = e.touches[0] || e.changedTouches[0];
-        return {
-            x: (touch.clientX - rect.left) * scaleX,
-            y: (touch.clientY - rect.top) * scaleY
-        };
-    } else {
-        // Mouse event
-        return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
-        };
-    }
-}
-
-// Prevent default touch behaviors to avoid scrolling while drawing
-function preventDefault(e) {
-    e.preventDefault();
-}
-
-canvas.addEventListener('mousedown', handleStart);
-canvas.addEventListener('mousemove', handleMove);
-canvas.addEventListener('mouseup', handleEnd);
-canvas.addEventListener('mouseleave', handleEnd);
-
-// Add touch event listeners for mobile
-canvas.addEventListener('touchstart', handleStart, { passive: false });
-canvas.addEventListener('touchmove', handleMove, { passive: false });
-canvas.addEventListener('touchend', handleEnd, { passive: false });
-
-function handleStart(e) {
-    preventDefault(e);
-    const coords = getCoordinates(e);
-    console.log('Start - currentRoom:', currentRoom, 'tool:', tool, 'coords:', coords); // Debug log
+canvas.addEventListener('mousedown', (e) => {
+    console.log('Mouse down - currentRoom:', currentRoom, 'tool:', tool); // Debug log
     
     if (tool === 'draw') {
         isDrawing = true;
         ctx.beginPath();
-        ctx.moveTo(coords.x, coords.y);
+        ctx.moveTo(e.offsetX, e.offsetY);
         
         // Only emit drawing events if we're in a room
         if (currentRoom) {
             const drawData = {
                 room: currentRoom,
-                x: coords.x,
-                y: coords.y,
+                x: e.offsetX,
+                y: e.offsetY,
                 color: color,
                 size: size
             };
@@ -297,39 +194,39 @@ function handleStart(e) {
         if (currentRoom) {
             socket.emit('erase', {
                 room: currentRoom,
-                x: coords.x,
-                y: coords.y,
+                x: e.offsetX,
+                y: e.offsetY,
                 size: size
             });
         }
     } else if (tool === 'line') {
-        startX = coords.x;
-        startY = coords.y;
+        startX = e.offsetX;
+        startY = e.offsetY;
     }
     else if(tool === 'circle')
     {
-        startX= coords.x;
-        startY= coords.y;
+        startX= e.offsetX;
+        startY= e.offsetY;
     }
     else if(tool === 'rectangle' || tool === 'triangle')
     {
-        startX= coords.x;
-        startY= coords.y;
+        startX= e.offsetX;
+        startY= e.offsetY;
     }
     else if (tool === 'text') {
         let t = text.value;
         if (t) {
             ctx.fillStyle = color;
             ctx.font = `${size*2}px Arial`;
-            ctx.fillText(t, coords.x, coords.y);
+            ctx.fillText(t, e.offsetX, e.offsetY);
             
             // Only emit text events if we're in a room
             if (currentRoom) {
                 socket.emit('add-text', {
                     room: currentRoom,
                     text: t,
-                    x: coords.x,
-                    y: coords.y,
+                    x: e.offsetX,
+                    y: e.offsetY,
                     color: color,
                     size: size*2
                 });
@@ -338,8 +235,8 @@ function handleStart(e) {
             // Store text object
             textObjects.push({
                 text: t,
-                x: coords.x,
-                y: coords.y,
+                x: e.offsetX,
+                y: e.offsetY,
                 color: color,
                 size: size*2
             });
@@ -347,14 +244,12 @@ function handleStart(e) {
         }
         tool="";
     }
-}
-
-function handleMove(e) {
-    preventDefault(e);
-    const coords = getCoordinates(e);
     
+});
+
+canvas.addEventListener('mousemove', (e) => {
     if (tool === 'draw' && isDrawing) {
-        ctx.lineTo(coords.x, coords.y);
+        ctx.lineTo(e.offsetX, e.offsetY);
         ctx.strokeStyle = color;
         ctx.lineWidth = size;
         ctx.lineCap = 'round';
@@ -364,31 +259,28 @@ function handleMove(e) {
         if (currentRoom) {
             socket.emit('draw-move', {
                 room: currentRoom,
-                x: coords.x,
-                y: coords.y,
+                x: e.offsetX,
+                y: e.offsetY,
                 color: color,
                 size: size
             });
         }
     } else if (tool === 'erase' && isErasing) {
-        ctx.clearRect(coords.x, coords.y, size, size);
+        ctx.clearRect(e.offsetX, e.offsetY, size, size);
         
         // Only emit erase movement if we're in a room
         if (currentRoom) {
             socket.emit('erase', {
                 room: currentRoom,
-                x: coords.x,
-                y: coords.y,
+                x: e.offsetX,
+                y: e.offsetY,
                 size: size
             });
         }
     }
-}
+});
 
-function handleEnd(e) {
-    preventDefault(e);
-    const coords = getCoordinates(e);
-    
+canvas.addEventListener('mouseup', (e) => {
     if (tool === 'draw' && isDrawing) {
         isDrawing = false;
         ctx.closePath();
@@ -403,8 +295,8 @@ function handleEnd(e) {
         }
         historyManager.saveState('erase');
     } else if (tool === 'line') {
-        const endX = coords.x;
-        const endY = coords.y;
+        const endX = e.offsetX;
+        const endY = e.offsetY;
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
@@ -431,8 +323,8 @@ function handleEnd(e) {
     }
     else if(tool === 'circle')
     {
-        const endX = coords.x;
-        const endY = coords.y;
+        const endX = e.offsetX;
+        const endY = e.offsetY;
         const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
 
         ctx.beginPath();
@@ -457,8 +349,8 @@ function handleEnd(e) {
         historyManager.saveState('circle');
     }
     else if (tool === 'rectangle') {
-        const endX = coords.x;
-        const endY = coords.y;
+        const endX = e.offsetX;
+        const endY = e.offsetY;
         const width = endX - startX;
         const height = endY - startY;
 
@@ -486,8 +378,8 @@ function handleEnd(e) {
     }
 
     else if (tool === 'triangle') {
-        const endX = coords.x;
-        const endY = coords.y;
+        const endX = e.offsetX;
+        const endY = e.offsetY;
     
         ctx.beginPath();
         ctx.moveTo(startX, startY); 
@@ -513,7 +405,30 @@ function handleEnd(e) {
         
         historyManager.saveState('triangle');
     }
-}
+    
+});
+
+canvas.addEventListener('mouseleave', () => {
+    if (tool === 'draw' && isDrawing) {
+        isDrawing = false;
+        ctx.closePath();
+    } else if (tool === 'erase' && isErasing) {
+        isErasing = false;
+    }
+});
+
+let down = document.getElementById('download');
+down.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'whiteboard.png';
+    link.href = canvas.toDataURL();
+    link.click();
+});
+
+let theme = document.getElementById('theme-switch');
+theme.addEventListener('change', () => {
+    document.body.classList.toggle('dark-theme');
+});
 
 // Add new mousedown handler for text selection
 canvas.addEventListener('mousedown', (e) => {
